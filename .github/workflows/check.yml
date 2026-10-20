@@ -20,14 +20,14 @@ jobs:
         os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
-    env:
-      CARGO_TARGET_DIR: ${{ runner.temp }}/yumunio-target
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
           cache: npm
+      - name: Use a temporary Rust build directory
+        run: node --input-type=module -e "import { appendFileSync } from 'node:fs'; import { join } from 'node:path'; appendFileSync(process.env.GITHUB_ENV, 'CARGO_TARGET_DIR=' + join(process.env.RUNNER_TEMP, 'yumunio-target') + '\n');"
       - run: npm ci
       - run: npm run format:check
       - run: npm run build
