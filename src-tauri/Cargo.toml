@@ -1,0 +1,22 @@
+[package]
+name = "yumunio-app"
+version = "0.1.0"
+description = "Connect to your self-hosted Yumunio workspace"
+authors = ["KuronekoServer"]
+license = "MIT"
+repository = "https://github.com/KuronekoServer/Yumunio-App"
+edition = "2021"
+
+[lib]
+name = "yumunio_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }

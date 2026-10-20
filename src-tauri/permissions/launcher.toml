@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "launcher-commands"
+description = "Verify a user-entered Yumunio origin and navigate to its account page."
+commands.allow = ["probe_server", "connect_server"]

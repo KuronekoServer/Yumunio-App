@@ -1,0 +1,54 @@
+name: Mobile build check
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to compile (unsigned verification only)
+        type: choice
+        options: [android, ios]
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    if: inputs.platform == 'android'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CARGO_TARGET_DIR: ${{ runner.temp }}/yumunio-target
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: |
+          rustup default stable
+          rustup target add aarch64-linux-android
+          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+          echo "NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> "$GITHUB_ENV"
+      - run: npm run android:init -- --ci
+      - run: npm run android:build -- --debug --apk --target aarch64
+
+  ios:
+    if: inputs.platform == 'ios'
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      CARGO_TARGET_DIR: ${{ runner.temp }}/yumunio-target
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: |
+          rustup default stable
+          rustup target add aarch64-apple-ios-sim
+      - run: npm run ios:init -- --ci
+      - run: npm run ios:build -- --debug --target aarch64-sim --no-sign --ci
