@@ -89,13 +89,20 @@ pub async fn verify_server(client: &Client, origin: &Url) -> Result<ServerConnec
             .join(path)
             .expect("Repository-owned absolute endpoint")
     };
-    let health: Health = read_json(client, endpoint("/health")).await?;
+    // Independent public checks share the pool and run together.
+    let (health, instance, authentication) = futures_util::future::join3(
+        read_json::<Health>(client, endpoint("/health")),
+        read_json::<Instance>(client, endpoint("/api/instance")),
+        read_json::<Authentication>(client, endpoint("/api/auth/config")),
+    )
+    .await;
+    let health = health?;
     if !["node", "worker"].contains(&health.runtime.as_str())
         || !["ok", "setup-required"].contains(&health.status.as_str())
     {
         return Err("このサーバーは現在利用できません。Yumunio の設定を確認してください。".into());
     }
-    let instance: Instance = read_json(client, endpoint("/api/instance")).await?;
+    let instance = instance?;
     let valid_name = |name: &str, limit| {
         !name.trim().is_empty()
             && name.chars().count() <= limit
@@ -116,8 +123,7 @@ pub async fn verify_server(client: &Client, origin: &Url) -> Result<ServerConnec
     }
     let setup_required = health.status == "setup-required";
     if !setup_required {
-        let authentication: Authentication =
-            read_json(client, endpoint("/api/auth/config")).await?;
+        let authentication = authentication?;
         if !authentication.enabled {
             return Err(
                 "このサーバーではアカウント認証が有効になっていません。管理者に確認してください。"
@@ -132,4 +138,87 @@ pub async fn verify_server(client: &Client, origin: &Url) -> Result<ServerConnec
         runtime: health.runtime,
         setup_required,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::thread;
+    use std::time::{Duration, Instant};
+
+    fn fixture(
+        setup_required: bool,
+        authentication_enabled: bool,
+    ) -> (Url, thread::JoinHandle<usize>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let task = thread::spawn(move || {
+            let mut connections = Vec::new();
+            let deadline = Instant::now() + Duration::from_secs(4);
+            // No response is released until all three requests have arrived.
+            // A sequential implementation therefore cannot pass this fixture.
+            while connections.len() < 3 && Instant::now() < deadline {
+                match listener.accept() {
+                    Ok((stream, _)) => connections.push(stream),
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(2));
+                    }
+                    Err(error) => panic!("Synthetic listener: {error}"),
+                }
+            }
+            let count = connections.len();
+            for mut stream in connections {
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(4)))
+                    .unwrap();
+                let mut request = [0u8; 4096];
+                let length = stream.read(&mut request).unwrap();
+                let request = String::from_utf8_lossy(&request[..length]);
+                let body = if request.starts_with("GET /health ") {
+                    serde_json::json!({"status":if setup_required {"setup-required"} else {"ok"},"runtime":"node"})
+                } else if request.starts_with("GET /api/instance ") {
+                    serde_json::json!({"schemaVersion":1,"applicationName":"Yumunio","organizationName":null})
+                } else {
+                    assert!(request.starts_with("GET /api/auth/config "));
+                    serde_json::json!({"enabled":authentication_enabled})
+                }.to_string();
+                write!(stream,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",body.len(),body).unwrap();
+            }
+            count
+        });
+        (Url::parse(&format!("http://{address}")).unwrap(), task)
+    }
+
+    #[test]
+    fn verifies_all_public_endpoints_in_parallel() {
+        let (origin, task) = fixture(false, true);
+        let connection =
+            tauri::async_runtime::block_on(verify_server(&http_client().unwrap(), &origin))
+                .unwrap();
+        assert!(!connection.setup_required);
+        assert_eq!(connection.application_name, "Yumunio");
+        assert_eq!(task.join().unwrap(), 3);
+    }
+
+    #[test]
+    fn refuses_a_configured_server_without_authentication() {
+        let (origin, task) = fixture(false, false);
+        let result =
+            tauri::async_runtime::block_on(verify_server(&http_client().unwrap(), &origin));
+        assert!(matches!(result, Err(message) if message.contains("アカウント認証")));
+        assert_eq!(task.join().unwrap(), 3);
+    }
+
+    #[test]
+    fn accepts_setup_without_treating_disabled_authentication_as_a_configured_instance() {
+        let (origin, task) = fixture(true, false);
+        let connection =
+            tauri::async_runtime::block_on(verify_server(&http_client().unwrap(), &origin))
+                .unwrap();
+        assert!(connection.setup_required);
+        assert_eq!(task.join().unwrap(), 3);
+    }
 }

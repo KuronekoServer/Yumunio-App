@@ -1,4 +1,5 @@
 import './styles.css';
+import './workspace-chrome.css';
 import { icon } from './icons';
 import { createLauncherView } from './view';
 import { connectServer, nativeAvailable, probeServer } from './native';
@@ -25,6 +26,7 @@ const clearButton = element<HTMLButtonElement>('.clear-input');
 const preferences = readPreferences();
 let connection: ServerConnection | null = null;
 let busy = false;
+let openSavedAfterVerification = false;
 let toastTimer = 0;
 
 function toast(text: string): void {
@@ -96,6 +98,7 @@ function renderServers(): void {
         urlInput.value = server.origin;
         clearButton.hidden = false;
         closeDialogs();
+        openSavedAfterVerification = true;
         form.requestSubmit();
       });
       const remove = document.createElement('button');
@@ -125,9 +128,28 @@ function setBusy(value: boolean): void {
   connectButton.classList.toggle('loading', value);
 }
 
+async function openVerifiedServer(origin: string, connection: ServerConnection): Promise<void> {
+  connectButton.querySelector('span')!.textContent = 'ワークスペースを開いています…';
+  const profile = {
+    origin,
+    name: connection.organizationName || connection.applicationName,
+    lastOpened: new Date().toISOString(),
+  };
+  preferences.servers = [
+    profile,
+    ...preferences.servers.filter((server) => server.origin !== origin),
+  ].slice(0, 20);
+  // Persist before navigation: the current document is destroyed when the server opens.
+  persist();
+  renderServers();
+  await connectServer(origin);
+}
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (busy) return;
+  const openSaved = openSavedAfterVerification;
+  openSavedAfterVerification = false;
   message.hidden = true;
   urlInput.removeAttribute('aria-invalid');
   try {
@@ -135,20 +157,7 @@ form.addEventListener('submit', async (event) => {
     urlInput.value = origin;
     setBusy(true);
     if (connection?.origin === origin) {
-      connectButton.querySelector('span')!.textContent = 'ワークスペースを開いています…';
-      const profile = {
-        origin,
-        name: connection.organizationName || connection.applicationName,
-        lastOpened: new Date().toISOString(),
-      };
-      preferences.servers = [
-        profile,
-        ...preferences.servers.filter((server) => server.origin !== origin),
-      ].slice(0, 20);
-      // Persist before navigation: the current document is destroyed when the server opens.
-      persist();
-      renderServers();
-      await connectServer(origin);
+      await openVerifiedServer(origin, connection);
     } else {
       connectButton.querySelector('span')!.textContent = '接続を確認しています…';
       connection = await probeServer(origin);
@@ -159,6 +168,7 @@ form.addEventListener('submit', async (event) => {
       changeButton.hidden = false;
       urlInput.readOnly = true;
       clearButton.hidden = true;
+      if (openSaved) await openVerifiedServer(origin, connection);
     }
   } catch (error) {
     message.textContent =

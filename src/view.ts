@@ -33,11 +33,10 @@ export function createLauncherView(nativeAvailable: boolean): string {
         </header>
         <div class="welcome-layout">
           <section class="connection-section" aria-labelledby="welcome-title">
-            <div class="eyebrow"><span class="eyebrow-line"></span>YOUR SPACE, YOUR SERVER</div>
-            <h1 id="welcome-title">あなたの場所へ、<br /><span>つながろう。</span></h1>
+            <div class="eyebrow"><span class="eyebrow-line"></span>YUMUNIO WORKSPACE</div>
+            <h1 id="welcome-title">ワークスペースを<br /><span>開きましょう。</span></h1>
             <p class="intro">
-              ノートも、アイデアも、チームの仕事も。<br />いつもの Yumunio
-              を、あなたのサーバーから。
+              ページも、タスクも、チームの仕事も。<br />いつもの接続先から、そのまま続けられます。
             </p>
             <section class="connection-card" aria-label="接続先の入力">
               <div class="card-heading">
@@ -104,58 +103,46 @@ export function createLauncherView(nativeAvailable: boolean): string {
               </button>
             </p>
           </section>
-          <aside class="story" aria-label="Yumunioについて">
-            <div class="story-visual" aria-hidden="true">
-              <div class="orbit orbit-one"></div>
-              <div class="orbit orbit-two"></div>
-              <div class="floating-label"><span class="tiny-dot"></span>余白から、はじまる。</div>
-              <div class="paper paper-back"></div>
-              <div class="paper paper-front">
-                <div class="paper-top">
-                  <span class="paper-symbol">y.</span><span class="paper-dots">•••</span>
-                </div>
-                <div class="paper-title">小さなアイデアを、<br />次の一歩に。</div>
-                <div class="paper-line long"></div>
-                <div class="paper-line"></div>
-                <div class="paper-grid">
-                  <div>
-                    <span class="mini-label">IDEA</span>
-                    <div class="mini-line"></div>
-                    <div class="mini-line short"></div>
-                  </div>
-                  <div>
-                    <span class="mini-label">MAKE IT</span>
-                    <div class="mini-check">✓ <span></span></div>
-                    <div class="mini-check">✓ <span></span></div>
-                  </div>
-                </div>
-                <div class="paper-bottom"><span></span><span></span><span></span><i></i></div>
+          <aside class="story workspace-preview" aria-label="使い方のイメージ">
+            <div class="preview-heading">
+              <span>使い方のイメージ</span><span>ページ / プロジェクト</span>
+            </div>
+            <div class="preview-page">
+              <span class="preview-page-icon">▤</span>
+              <h2>プロジェクトノート</h2>
+              <p>考えたことと、次に進めることを一緒に。</p>
+              <div class="preview-callout">
+                本文の下に課題を置いて、一覧を見ながら編集できます。
               </div>
-              <div class="leaf leaf-one"></div>
-              <div class="leaf leaf-two"></div>
-              <span class="spark spark-one">✳</span><span class="spark spark-two">+</span>
-              <div class="visual-caption">A LITTLE ROOM FOR BIG IDEAS.</div>
+              <div class="preview-views">
+                <strong>▦ 表</strong><span>かんばん</span><span>カレンダー</span>
+              </div>
+              <table aria-label="課題の表示例">
+                <thead>
+                  <tr>
+                    <th>課題</th>
+                    <th>ステータス</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>目的をまとめる</td>
+                    <td><span class="preview-status">進行中</span></td>
+                  </tr>
+                  <tr>
+                    <td>次の予定を決める</td>
+                    <td><span class="preview-status neutral">未着手</span></td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="preview-footer">
+                <span class="preview-avatar">Y</span
+                ><span>同じページを、ほかの端末やチームと。</span>
+              </div>
             </div>
-            <div class="story-copy">
-              <h2>考える場所を、自由に。</h2>
-              <p>
-                使うサーバーも、使うデバイスも、あなた次第。<br />いつものワークスペースを、どこにいても。
-              </p>
-            </div>
-            <div class="platforms" aria-label="Windows、macOS、Android、iPhone、タブレットに対応">
-              ${icon('laptop')}<span>Desktop</span><span class="platform-divider"></span
-              ><svg
-                class="icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.65"
-                aria-hidden="true"
-              >
-                <rect x="7" y="2" width="10" height="20" rx="2" />
-                <path d="M10 18h4" /></svg
-              ><span>Mobile & Tablet</span>
-            </div>
+            <p class="preview-caption">
+              表示・共同編集の機能は、接続先のYumunioで提供されます。最新版のサーバーをご利用ください。
+            </p>
           </aside>
         </div>
         <footer class="footer">
