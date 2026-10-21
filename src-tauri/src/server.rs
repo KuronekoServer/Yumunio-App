@@ -171,12 +171,19 @@ mod tests {
             }
             let count = connections.len();
             for mut stream in connections {
+                stream.set_nonblocking(false).unwrap();
                 stream
                     .set_read_timeout(Some(Duration::from_secs(4)))
                     .unwrap();
-                let mut request = [0u8; 4096];
-                let length = stream.read(&mut request).unwrap();
-                let request = String::from_utf8_lossy(&request[..length]);
+                let mut request = Vec::new();
+                while !request.windows(4).any(|part| part == b"\r\n\r\n") {
+                    let mut chunk = [0u8; 512];
+                    let length = stream.read(&mut chunk).unwrap();
+                    assert!(length > 0, "Synthetic client closed before its headers");
+                    request.extend_from_slice(&chunk[..length]);
+                    assert!(request.len() <= 4096, "Synthetic request header limit");
+                }
+                let request = String::from_utf8_lossy(&request);
                 let body = if request.starts_with("GET /health ") {
                     serde_json::json!({"status":if setup_required {"setup-required"} else {"ok"},"runtime":"node"})
                 } else if request.starts_with("GET /api/instance ") {
